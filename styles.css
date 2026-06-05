@@ -202,3 +202,26 @@ button:hover {
   font-size: 10px;
   padding: 1px 5px;
 }
+
+.day-block {
+  margin-bottom: 10px;
+}
+
+.date-header.collapsible {
+  cursor: pointer;
+  user-select: none;
+}
+
+.date-header.collapsible:hover {
+  color: #ffffff;
+}
+
+/* default expanded */
+.day-list {
+  margin-top: 6px;
+}
+
+/* collapsed state */
+.day-list.collapsed {
+  display: none;
+}
