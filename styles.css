@@ -152,3 +152,50 @@ button:hover {
   font-size: 13px;
   line-height: 1.35em;
 }
+
+.cog {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #1b2230;
+  border: 1px solid #2f3a4d;
+  color: #e6e6e6;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.cog:hover {
+  background: #263147;
+}
+
+#status {
+  font-size: 11px;
+  color: #7f8a9a;
+}
+
+.activity {
+  padding: 8px;
+  margin-bottom: 6px;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.desc {
+  font-size: 11px;
+  line-height: 1.25em;
+  color: #9aa4b2;
+}
+
+.meta {
+  font-size: 10px;
+  color: #6f7a8a;
+}
+
+.category {
+  font-size: 10px;
+  padding: 1px 5px;
+}
