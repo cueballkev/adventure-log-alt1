@@ -48,48 +48,17 @@ let categoryVisibility = {
   other: true
 };
 
-let lastActivities = [];
-
 const savedRSN = localStorage.getItem("lastRSN");
+
 if (savedRSN) {
   rsnInput.value = savedRSN;
 
-  loadStoredHistory(); // instant display
-  loadLog();           // background refresh
+  const store = loadStore(savedRSN);
+  renderActivities(store);   // instant UI from cache
+
+  loadLog(); // then sync in background
 } else {
   rsnInput.focus();
-}
-// ------------------------
-// STORAGE (per player)
-// ------------------------
-
-function loadHistoryStore() {
-  return JSON.parse(localStorage.getItem("historyByPlayer") || "{}");
-}
-
-function saveHistoryStore(store) {
-  localStorage.setItem("historyByPlayer", JSON.stringify(store));
-}
-
-function getPlayerHistory(rsn) {
-  const store = loadHistoryStore();
-  return store[rsn] || [];
-}
-
-function setPlayerHistory(rsn, activities) {
-  const store = loadHistoryStore();
-  store[rsn] = activities;
-  saveHistoryStore(store);
-}
-
-function loadStoredHistory() {
-  const rsn = rsnInput.value.trim();
-  if (!rsn) return;
-
-  const history = getPlayerHistory(rsn);
-
-  lastActivities = history;
-  renderActivities();
 }
 
 // ------------------------
@@ -97,12 +66,21 @@ function loadStoredHistory() {
 // ------------------------
 
 refreshBtn.addEventListener("click", () => {
-  loadStoredHistory();
-  loadLog();
+  const rsn = rsnInput.value.trim();
+  if (!rsn) return;
+
+  const store = loadStore(rsn);
+  renderActivities(store); // instant cached view
+  loadLog();               // then sync
 });
 
 rsnInput.addEventListener("change", () => {
-  loadStoredHistory();
+  const rsn = rsnInput.value.trim();
+  if (!rsn) return;
+
+  const store = loadStore(rsn);
+  renderActivities(store);
+  loadLog();
 });
 
 document.querySelectorAll(".toggle").forEach(btn => {
@@ -147,46 +125,43 @@ startAutoRefresh();
 // LOAD DATA (RSS → HISTORY)
 // ------------------------
 
-function getLastSeenGuid(history) {
-  return history.length ? history[0].guid : null;
+function loadStore(rsn) {
+  const raw = localStorage.getItem(`history_${rsn}`);
+  if (!raw) return new Map();
+
+  try {
+    return new Map(JSON.parse(raw));
+  } catch {
+    return new Map();
+  }
+}
+
+function saveStore(rsn, map) {
+  localStorage.setItem(
+    `history_${rsn}`,
+    JSON.stringify([...map.entries()])
+  );
 }
 
 function getEventKey(item) {
   return item.guid || `${item.pubDate}-${item.title}`;
 }
 
-function sortHistory(history) {
-  return history.sort((a, b) => {
-    const ta = new Date(a.pubDate).getTime();
-    const tb = new Date(b.pubDate).getTime();
-
-    if (ta !== tb) return tb - ta;
-
-    return getEventKey(b).localeCompare(getEventKey(a));
-  });
-}
-
 async function loadLog(silent = false) {
   const rsn = rsnInput.value.trim();
   if (!rsn) return;
 
-  loadStoredHistory();
-
   localStorage.setItem("lastRSN", rsn);
+
+  let store = loadStore(rsn);
 
   if (!silent) {
     statusDiv.textContent = "Syncing latest activities...";
   }
 
   try {
-    let history = getPlayerHistory(rsn);
-
-    // ✅ use canonical key system
-    const existing = new Set(history.map(getEventKey));
-
     let iterations = 0;
     const MAX_ITERATIONS = 5;
-
     let newItemsFound = true;
 
     while (newItemsFound && iterations < MAX_ITERATIONS) {
@@ -201,7 +176,6 @@ async function loadLog(silent = false) {
       );
 
       const data = await response.json();
-
       if (!data.activities) break;
 
       newItemsFound = false;
@@ -209,38 +183,30 @@ async function loadLog(silent = false) {
       for (const item of data.activities) {
         const key = getEventKey(item);
 
-        if (!existing.has(key)) {
-          existing.add(key);
-          history.push(item);
+        if (!store.has(key)) {
+          store.set(key, item);
           newItemsFound = true;
         }
       }
 
-      // small delay between passes
-      await new Promise(r => setTimeout(r, 400));
+      await new Promise(r => setTimeout(r, 300));
     }
 
-    history = sortHistory(history);    
-    setPlayerHistory(rsn, history);
-    lastActivities = history;
-    
-    renderActivities();
+    saveStore(rsn, store);
 
-    if (!silent) {
-      statusDiv.textContent =
-        `Synced • ${history.length} entries • ${iterations} pass(es)`;
-    } else {
-      statusDiv.textContent =
-        `Auto-synced • ${new Date().toLocaleTimeString()}`;
-    }
+    renderActivities(store);
+
+    statusDiv.textContent = silent
+      ? `Auto-synced • ${new Date().toLocaleTimeString()}`
+      : `Synced • ${store.size} entries • ${iterations} pass(es)`;
 
   } catch (err) {
     console.error(err);
 
-    loadStoredHistory();
+    renderActivities(store);
 
     statusDiv.textContent =
-      "Sync failed • showing cached history";
+      "Sync failed • showing cached data";
   }
 }
 
@@ -265,24 +231,21 @@ function startAutoRefresh() {
 // RENDER UI (ONLY UI WORK HERE)
 // ------------------------
 
-function renderActivities() {
-  const rsn = rsnInput.value.trim();
-  const history = getPlayerHistory(rsn);
-
+function renderActivities(map) {
+  const activitiesDiv = document.getElementById("activities");
   activitiesDiv.innerHTML = "";
 
-  if (!history.length) {
+  if (!map || map.size === 0) {
     activitiesDiv.innerHTML = "<p>No history yet.</p>";
     return;
   }
 
-  const sorted = [...history].sort((a, b) => {
+  const sorted = [...map.values()].sort((a, b) => {
     const ta = new Date(a.pubDate).getTime();
     const tb = new Date(b.pubDate).getTime();
-  
+
     if (ta !== tb) return tb - ta;
-  
-    // deterministic tie-breaker
+
     return getEventKey(b).localeCompare(getEventKey(a));
   });
 
@@ -295,11 +258,9 @@ function renderActivities() {
     if (!categoryVisibility[category]) {
       continue;
     }
+    
+    const dateLabel = new Date(activity.pubDate).toDateString();
 
-    const dateObj = new Date(activity.pubDate);
-    const dateLabel = dateObj.toDateString();
-
-    // NEW DATE BLOCK
     if (dateLabel !== currentDate) {
       currentDate = dateLabel;
 
@@ -307,19 +268,14 @@ function renderActivities() {
       container.className = "day-block";
 
       const header = document.createElement("div");
-      header.className = "date-header collapsible";
+      header.className = "date-header";
       header.textContent = dateLabel;
 
       const list = document.createElement("div");
       list.className = "day-list";
 
-      header.addEventListener("click", () => {
-        list.classList.toggle("collapsed");
-      });
-
       container.appendChild(header);
       container.appendChild(list);
-
       activitiesDiv.appendChild(container);
     }
 
@@ -328,14 +284,8 @@ function renderActivities() {
 
     div.innerHTML = `
       <div class="activity-top">
-        <span class="icon">${getIcon(category)}</span>
         <span class="title">${escapeHtml(activity.title)}</span>
       </div>
-
-      <div class="meta">
-        <span class="category">${category.toUpperCase()}</span>
-      </div>
-
       <div class="desc">${escapeHtml(activity.description || "")}</div>
     `;
 
