@@ -62,10 +62,9 @@ button:hover {
   padding: 5px 10px;
 }
 
-.filter-btn.active {
-  background: #4aa3ff;
-  border-color: #4aa3ff;
-  color: #000;
+.toggle.off {
+  opacity: 0.4;
+  background: #1a1f2b;
 }
 
 #toggleAuto {
