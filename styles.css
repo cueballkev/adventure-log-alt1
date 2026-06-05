@@ -23,7 +23,7 @@ h1 {
 /* Input */
 input {
   padding: 7px;
-  width: 200px;
+  width: 100px;
   background: #151a22;
   border: 1px solid #2a3140;
   color: #e6e6e6;
@@ -69,7 +69,10 @@ button:hover {
 }
 
 #toggleAuto {
-  margin-left: auto;
+  margin-left: auto;  
+  font-size: 9px;
+  height: 31px; 
+  padding: 6px 12px;
 }
 
 #toggleAuto.active {
