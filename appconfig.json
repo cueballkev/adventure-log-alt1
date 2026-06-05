@@ -1,0 +1,7 @@
+{
+  "appName": "Adventure Log",
+  "description": "View RuneScape Adventurer Log RSS feeds",
+  "appUrl": "./index.html",
+  "configUrl": "./appconfig.json",
+  "iconUrl": "./icon.png"
+}
