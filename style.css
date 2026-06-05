@@ -99,3 +99,43 @@ button:hover {
   margin-top: 4px;
   line-height: 1.3em;
 }
+
+.filters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.filters button {
+  font-size: 12px;
+  padding: 5px 10px;
+}
+
+.filters button.active {
+  background: #4aa3ff;
+  border-color: #4aa3ff;
+  color: #000;
+}
+
+.activity-top {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.icon {
+  width: 18px;
+}
+
+.meta {
+  margin-top: 3px;
+  font-size: 11px;
+  color: #7f8a9a;
+}
+
+.category {
+  background: #222836;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
