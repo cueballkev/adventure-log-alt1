@@ -7,11 +7,13 @@ const rsnInput = document.getElementById("rsn");
 
 let currentFilter = "all";
 let autoRefreshEnabled = true;
-let refreshInterval = 60000; // 60 seconds
+let refreshInterval = 60000;
 let refreshTimer = null;
 
+let lastActivities = [];
+
 // ------------------------
-// STORAGE HELPERS
+// STORAGE (per player)
 // ------------------------
 
 function loadHistoryStore() {
@@ -34,7 +36,7 @@ function setPlayerHistory(rsn, activities) {
 }
 
 // ------------------------
-// EVENTS
+// INIT
 // ------------------------
 
 refreshBtn.addEventListener("click", loadLog);
@@ -53,34 +55,19 @@ document.querySelectorAll(".filters button")
     });
   });
 
-document.getElementById("toggleAuto").addEventListener("click", () => {
-  autoRefreshEnabled = !autoRefreshEnabled;
-
-  document.getElementById("toggleAuto").textContent =
-    autoRefreshEnabled ? "Auto: ON" : "Auto: OFF";
-
-  if (autoRefreshEnabled) {
-    startAutoRefresh();
-  } else {
-    clearInterval(refreshTimer);
-  }
-});
-
-// auto load
+// auto-start
 loadLog();
 startAutoRefresh();
 
 // ------------------------
-// LOAD RSS + MERGE HISTORY
+// LOAD DATA (RSS → HISTORY)
 // ------------------------
 
 async function loadLog(silent = false) {
   const rsn = rsnInput.value.trim();
   if (!rsn) return;
 
-  if (!silent) {
-    statusDiv.textContent = "Loading...";
-  }
+  if (!silent) statusDiv.textContent = "Loading...";
 
   try {
     const response = await fetch(
@@ -90,55 +77,60 @@ async function loadLog(silent = false) {
     const data = await response.json();
 
     if (!data.activities) {
-      statusDiv.textContent = "No data returned";
+      if (!silent) statusDiv.textContent = "No data returned";
       return;
     }
 
-    // load existing history
+    // merge into history
     let history = getPlayerHistory(rsn);
 
-    // merge new activities (avoid duplicates by GUID)
-    const existingGuids = new Set(history.map(x => x.guid));
+    const existing = new Set(history.map(x => x.guid));
 
     for (const item of data.activities) {
-      if (!existingGuids.has(item.guid)) {
+      if (!existing.has(item.guid)) {
         history.push(item);
       }
     }
 
-    // save back per player
     setPlayerHistory(rsn, history);
+
+    lastActivities = history;
+
+    renderActivities();
 
     if (!silent) {
       statusDiv.textContent =
-        `${history.length} total saved (${data.activities.length} latest fetched)`;
+        `${history.length} saved | ${data.activities.length} fetched`;
     } else {
       statusDiv.textContent =
         `Auto-updated • ${new Date().toLocaleTimeString()}`;
     }
 
-    renderActivities();
-
   } catch (err) {
     console.error(err);
-    statusDiv.textContent = "Failed to load activity feed";
+    if (!silent) statusDiv.textContent = "Failed to load feed";
   }
 }
+
+// ------------------------
+// AUTO REFRESH
+// ------------------------
 
 function startAutoRefresh() {
   if (refreshTimer) clearInterval(refreshTimer);
 
   refreshTimer = setInterval(() => {
     if (!autoRefreshEnabled) return;
+
     const rsn = rsnInput.value.trim();
     if (!rsn) return;
 
-    loadLog(true); // silent refresh
+    loadLog(true);
   }, refreshInterval);
 }
 
 // ------------------------
-// RENDER (from history)
+// RENDER UI (ONLY UI WORK HERE)
 // ------------------------
 
 function renderActivities() {
@@ -205,77 +197,22 @@ function renderActivities() {
 }
 
 // ------------------------
-// CATEGORY SYSTEM
+// CATEGORY LOGIC
 // ------------------------
 
-function getCategory(title, description = "") {
-  const text = (title + " " + description).toLowerCase();
+function getCategory(title) {
+  const t = title.toLowerCase();
 
-  // -------------------------
-  // BOSSES (highest priority)
-  // -------------------------
-  const bosses = [
-    "nakatra",
-    "zamorak",
-    "zammy",
-    "telos",
-    "aod",
-    "arakki",
-    "solak",
-    "raksha",
-    "kerapac",
-    "arch glacor",
-    "vorago",
-    "nex",
-    "kalphite",
-    "gregorovic",
-    "vindicta"
-  ];
+  if (t.includes("killed") || t.includes("defeated")) return "boss";
+  if (t.includes("level") || t.includes("advanced")) return "skill";
+  if (t.includes("quest")) return "quest";
 
   if (
-    text.includes("killed") ||
-    text.includes("defeated") ||
-    bosses.some(b => text.includes(b))
-  ) {
-    return "boss";
-  }
-
-  // -------------------------
-  // SKILLING
-  // -------------------------
-  if (
-    text.includes("levelled") ||
-    text.includes("level up") ||
-    text.includes("advanced a level") ||
-    text.includes("experience") ||
-    text.includes("xp")
-  ) {
-    return "skill";
-  }
-
-  // -------------------------
-  // QUESTS
-  // -------------------------
-  if (
-    text.includes("quest") ||
-    text.includes("completed quest")
-  ) {
-    return "quest";
-  }
-
-  // -------------------------
-  // LOOT / ITEMS
-  // -------------------------
-  if (
-    text.includes("obtained") ||
-    text.includes("received") ||
-    text.includes("found") ||
-    text.includes("dropped") ||
-    text.includes("loot") ||
-    text.includes("you have been awarded")
-  ) {
-    return "loot";
-  }
+    t.includes("obtained") ||
+    t.includes("received") ||
+    t.includes("dropped") ||
+    t.includes("loot")
+  ) return "loot";
 
   return "other";
 }
