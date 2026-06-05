@@ -127,6 +127,7 @@ async function loadLog(silent = false) {
 
     for (const item of data.activities) {
       if (!existing.has(item.guid)) {
+        item._seq = history.length; // preserve insertion order
         history.push(item);
       }
     }
@@ -174,45 +175,56 @@ function startAutoRefresh() {
 
 function renderActivities() {
   const rsn = rsnInput.value.trim();
-
-  if (!rsn) {
-    activitiesDiv.innerHTML = "<p>Enter a player name.</p>";
-    return;
-  }
-
   const history = getPlayerHistory(rsn);
-
-  if (!history || history.length === 0) {
-    activitiesDiv.innerHTML = "<p>No history yet. Click Refresh.</p>";
-    return;
-  }
 
   activitiesDiv.innerHTML = "";
 
-  const sorted = [...history].sort(
-    (a, b) => new Date(b.pubDate) - new Date(a.pubDate)
-  );
+  if (!history.length) {
+    activitiesDiv.innerHTML = "<p>No history yet.</p>";
+    return;
+  }
+
+  const sorted = [...history].sort((a, b) => {
+    const dateDiff = new Date(b.pubDate) - new Date(a.pubDate);
+    if (dateDiff !== 0) return dateDiff;
+    return (b._seq ?? 0) - (a._seq ?? 0);
+  });
 
   let currentDate = "";
+  let container = null;
 
   for (const activity of sorted) {
     const category = getCategory(activity.title);
 
-    if (currentFilter && currentFilter !== "all" && category !== currentFilter) {
+    if (currentFilter !== "all" && category !== currentFilter) {
       continue;
     }
 
     const dateObj = new Date(activity.pubDate);
     const dateLabel = dateObj.toDateString();
 
+    // NEW DATE BLOCK
     if (dateLabel !== currentDate) {
       currentDate = dateLabel;
 
+      container = document.createElement("div");
+      container.className = "day-block";
+
       const header = document.createElement("div");
-      header.className = "date-header";
+      header.className = "date-header collapsible";
       header.textContent = dateLabel;
 
-      activitiesDiv.appendChild(header);
+      const list = document.createElement("div");
+      list.className = "day-list";
+
+      header.addEventListener("click", () => {
+        list.classList.toggle("collapsed");
+      });
+
+      container.appendChild(header);
+      container.appendChild(list);
+
+      activitiesDiv.appendChild(container);
     }
 
     const div = document.createElement("div");
@@ -223,13 +235,15 @@ function renderActivities() {
         <span class="icon">${getIcon(category)}</span>
         <span class="title">${escapeHtml(activity.title)}</span>
       </div>
+
       <div class="meta">
         <span class="category">${category.toUpperCase()}</span>
       </div>
+
       <div class="desc">${escapeHtml(activity.description || "")}</div>
     `;
 
-    activitiesDiv.appendChild(div);
+    container.querySelector(".day-list").appendChild(div);
   }
 }
 
