@@ -208,25 +208,74 @@ function renderActivities() {
 // CATEGORY SYSTEM
 // ------------------------
 
-function getCategory(title) {
-  const t = title.toLowerCase();
+function getCategory(title, description = "") {
+  const text = (title + " " + description).toLowerCase();
 
-  if (t.includes("killed") || t.includes("defeated"))
-    return "boss";
-
-  if (t.includes("level") || t.includes("advanced"))
-    return "skill";
-
-  if (t.includes("quest"))
-    return "quest";
+  // -------------------------
+  // BOSSES (highest priority)
+  // -------------------------
+  const bosses = [
+    "nakatra",
+    "zamorak",
+    "zammy",
+    "telos",
+    "aod",
+    "arakki",
+    "solak",
+    "raksha",
+    "kerapac",
+    "arch glacor",
+    "vorago",
+    "nex",
+    "kalphite",
+    "gregorovic",
+    "vindicta"
+  ];
 
   if (
-    t.includes("obtained") ||
-    t.includes("received") ||
-    t.includes("dropped") ||
-    t.includes("loot")
-  )
+    text.includes("killed") ||
+    text.includes("defeated") ||
+    bosses.some(b => text.includes(b))
+  ) {
+    return "boss";
+  }
+
+  // -------------------------
+  // SKILLING
+  // -------------------------
+  if (
+    text.includes("levelled") ||
+    text.includes("level up") ||
+    text.includes("advanced a level") ||
+    text.includes("experience") ||
+    text.includes("xp")
+  ) {
+    return "skill";
+  }
+
+  // -------------------------
+  // QUESTS
+  // -------------------------
+  if (
+    text.includes("quest") ||
+    text.includes("completed quest")
+  ) {
+    return "quest";
+  }
+
+  // -------------------------
+  // LOOT / ITEMS
+  // -------------------------
+  if (
+    text.includes("obtained") ||
+    text.includes("received") ||
+    text.includes("found") ||
+    text.includes("dropped") ||
+    text.includes("loot") ||
+    text.includes("you have been awarded")
+  ) {
     return "loot";
+  }
 
   return "other";
 }
