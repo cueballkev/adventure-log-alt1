@@ -256,66 +256,40 @@ function renderActivities() {
 // CATEGORY LOGIC
 // ------------------------
 
-function getCategory(title, description = "") {
-  const text = (title + " " + description).toLowerCase();
+const KNOWN_BOSSES = [
+  "nakatra","zamorak","telos","raksha","solak","kerapac",
+  "nex","vorago","arch glacor","vindicta","gregorovic","kalphite king"
+];
 
-  // -------------------------
-  // SKILL LIST (RuneScape core skills)
-  // -------------------------
-  const skills = [
-    "attack","strength","defence","defense","ranged","magic",
-    "constitution","hitpoints","prayer","summoning","dungeoneering",
-    "agility","herblore","thieving","crafting","fletching","slayer",
-    "hunter","construction","farming","runecrafting","divination",
-    "archaeology","necromancy"
-  ];
+const TITLE_RULES = [
+  ["skill", t => /\d+\s*xp\b/i.test(t)],
+  ["skill", t => t.includes("advanced a level")],
+  ["skill", t => t.includes("levelled")],
+  ["skill", t => t.includes("level up")],
+  ["skill", t => t.includes("experience points")],
 
-  // -------------------------
-  // SKILL / XP DETECTION
-  // -------------------------
-  if (
-    /\d+\s*xp/i.test(text) ||               // "92000000XP"
-    text.includes("experience points") ||
-    text.includes("gained experience") ||
-    skills.some(s => text.includes(s))
-  ) {
-    return "skill";
-  }
+  ["boss", t => KNOWN_BOSSES.some(b => t.includes(b))],
+  ["boss", t => t.startsWith("i killed ")],
+  ["boss", t => t.startsWith("i defeated ")],
+  ["boss", t => t.includes("boss kill")],
 
-  // -------------------------
-  // BOSSES
-  // -------------------------
-  const bosses = [
-    "nakatra","zamorak","telos","raksha","solak","nex",
-    "vorago","kalphite","gregorovic","vindicta","arch glacor"
-  ];
+  ["quest", t => t.includes("quest")],
+  ["quest", t => t.startsWith("i completed ")],
 
-  if (
-    text.includes("killed") ||
-    text.includes("defeated") ||
-    bosses.some(b => text.includes(b))
-  ) {
-    return "boss";
-  }
+  ["loot", t => t.startsWith("i found ")],
+  ["loot", t => t.startsWith("i obtained ")],
+  ["loot", t => t.startsWith("i received ")],
+  ["loot", t => t.startsWith("i was awarded ")],
+  ["loot", t => t.includes(" drop")]
+];
 
-  // -------------------------
-  // QUESTS
-  // -------------------------
-  if (text.includes("quest")) {
-    return "quest";
-  }
+function getCategory(title) {
+  const t = title.trim().toLowerCase();
 
-  // -------------------------
-  // LOOT / ITEMS
-  // -------------------------
-  if (
-    text.includes("obtained") ||
-    text.includes("received") ||
-    text.includes("dropped") ||
-    text.includes("loot") ||
-    text.includes("awarded")
-  ) {
-    return "loot";
+  for (const [category, test] of TITLE_RULES) {
+    if (test(t)) {
+      return category;
+    }
   }
 
   return "other";
