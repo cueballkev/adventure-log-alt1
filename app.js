@@ -16,6 +16,15 @@ let refreshTimer = null;
 
 let lastActivities = [];
 
+const savedRSN = localStorage.getItem("lastRSN");
+if (savedRSN) {
+  rsnInput.value = savedRSN;
+  loadLog();
+}
+else{
+  rsnInput.focus();
+}
+
 // ------------------------
 // STORAGE (per player)
 // ------------------------
@@ -94,6 +103,8 @@ startAutoRefresh();
 async function loadLog(silent = false) {
   const rsn = rsnInput.value.trim();
   if (!rsn) return;
+
+  localStorage.setItem("lastRSN", rsn);
 
   if (!silent) statusDiv.textContent = "Loading...";
 
