@@ -91,7 +91,7 @@ document.querySelectorAll(".toggle").forEach(btn => {
 
     btn.classList.toggle("off", !categoryVisibility[cat]);
 
-    renderActivities();
+    renderActivities(loadStore(rsnInput.value.trim()));
   });
 });
 
