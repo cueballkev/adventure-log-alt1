@@ -62,9 +62,19 @@ button:hover {
   padding: 5px 10px;
 }
 
-.filters button.active {
+.filter-btn.active {
   background: #4aa3ff;
   border-color: #4aa3ff;
+  color: #000;
+}
+
+#toggleAuto {
+  margin-left: auto;
+}
+
+#toggleAuto.active {
+  background: #00ff88;
+  border-color: #00ff88;
   color: #000;
 }
 
