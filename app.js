@@ -41,12 +41,12 @@ function setPlayerHistory(rsn, activities) {
 
 refreshBtn.addEventListener("click", loadLog);
 
-document.querySelectorAll(".filters button")
+document.querySelectorAll(".filter-btn")
   .forEach(btn => {
     btn.addEventListener("click", () => {
       currentFilter = btn.dataset.filter;
 
-      document.querySelectorAll(".filters button")
+      document.querySelectorAll(".filter-btn")
         .forEach(b => b.classList.remove("active"));
 
       btn.classList.add("active");
@@ -61,8 +61,8 @@ if (toggleBtn) {
   toggleBtn.addEventListener("click", () => {
     autoRefreshEnabled = !autoRefreshEnabled;
 
-    toggleBtn.textContent =
-      autoRefreshEnabled ? "Auto: ON" : "Auto: OFF";
+    toggleBtn.textContent = autoRefreshEnabled ? "Auto: ON" : "Auto: OFF";
+    toggleBtn.classList.toggle("active", autoRefreshEnabled);
 
     if (autoRefreshEnabled) {
       startAutoRefresh();
