@@ -180,14 +180,21 @@ async function loadLog(silent = false) {
 
       newItemsFound = false;
 
-      for (const item of data.activities) {
+      const batchId = Date.now(); // snapshot identifier
+
+      data.activities.forEach((item, index) => {
         const key = getEventKey(item);
 
         if (!store.has(key)) {
-          store.set(key, item);
+          store.set(key, {
+            ...item,
+            _batchId: batchId,
+            _batchOrder: index
+          });
+
           newItemsFound = true;
         }
-      }
+      });
 
       await new Promise(r => setTimeout(r, 300));
     }
@@ -244,21 +251,22 @@ function renderActivities(map) {
     const ta = new Date(a.pubDate).getTime();
     const tb = new Date(b.pubDate).getTime();
 
+    // 1. date (newest first)
     if (ta !== tb) return tb - ta;
 
-    return getEventKey(b).localeCompare(getEventKey(a));
+    // 2. batch (newest sync first)
+    if (a._batchId !== b._batchId) {
+      return b._batchId - a._batchId;
+    }
+
+    // 3. RSS order within batch
+    return (a._batchOrder ?? 0) - (b._batchOrder ?? 0);
   });
 
   let currentDate = "";
   let container = null;
 
   for (const activity of sorted) {
-    const category = getCategory(activity.title);
-
-    if (!categoryVisibility[category]) {
-      continue;
-    }
-    
     const dateLabel = new Date(activity.pubDate).toDateString();
 
     if (dateLabel !== currentDate) {
