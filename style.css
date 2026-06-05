@@ -1,5 +1,5 @@
 body {
-  background: #0f1115;
+  background: #0d0f14;
   color: #e6e6e6;
   font-family: Arial, sans-serif;
   margin: 15px;
@@ -12,94 +12,44 @@ h1 {
   font-size: 20px;
 }
 
-/* Input + button bar */
+/* Toolbar (RSN + button row) */
 .toolbar {
-  margin-bottom: 15px;
   display: flex;
   gap: 8px;
+  margin-bottom: 10px;
+  align-items: center;
 }
 
+/* Input */
 input {
   padding: 7px;
   width: 200px;
-  background: #1a1d23;
-  border: 1px solid #2c313a;
+  background: #151a22;
+  border: 1px solid #2a3140;
   color: #e6e6e6;
-  outline: none;
   border-radius: 4px;
+  outline: none;
 }
 
 input:focus {
   border-color: #4aa3ff;
 }
 
+/* Button */
 button {
   padding: 7px 12px;
-  background: #2a2f3a;
-  border: 1px solid #3a404c;
+  background: #1b2230;
+  border: 1px solid #2f3a4d;
   color: #e6e6e6;
-  cursor: pointer;
   border-radius: 4px;
+  cursor: pointer;
 }
 
 button:hover {
-  background: #3a4250;
+  background: #263147;
 }
 
-/* Status text */
-#status {
-  margin-bottom: 10px;
-  color: #9aa4b2;
-  font-size: 13px;
-}
-
-/* Date header */
-.date-header {
-  margin-top: 18px;
-  margin-bottom: 8px;
-  font-weight: bold;
-  color: #ffd36a;
-  border-bottom: 1px solid #2a2f3a;
-  padding-bottom: 4px;
-}
-
-/* Activity card */
-.activity {
-  background: #151922;
-  padding: 10px;
-  margin-bottom: 8px;
-  border-radius: 6px;
-  border: 1px solid #222836;
-  transition: 0.15s ease;
-}
-
-.activity:hover {
-  background: #1a1f2b;
-}
-
-/* NEW highlight */
-.activity.new {
-  border-left: 3px solid #00ff88;
-  background: rgba(0, 255, 136, 0.06);
-}
-
-.activity.new .title {
-  color: #00ff88;
-}
-
-/* Text */
-.title {
-  font-weight: bold;
-  color: #ffffff;
-}
-
-.desc {
-  color: #a9b1bd;
-  font-size: 13px;
-  margin-top: 4px;
-  line-height: 1.3em;
-}
-
+/* Filter bar */
 .filters {
   display: flex;
   gap: 6px;
@@ -118,6 +68,44 @@ button:hover {
   color: #000;
 }
 
+/* Status */
+#status {
+  margin-bottom: 10px;
+  color: #9aa4b2;
+  font-size: 13px;
+}
+
+/* Date header */
+.date-header {
+  margin-top: 18px;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #ffd36a;
+  border-bottom: 1px solid #262d3a;
+  padding-bottom: 4px;
+}
+
+/* Activity card */
+.activity {
+  background: #141922;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  border: 1px solid #222a38;
+  transition: 0.15s ease;
+}
+
+.activity:hover {
+  background: #1a2130;
+}
+
+/* NEW highlight */
+.activity.new {
+  border-left: 3px solid #00ff88;
+  background: rgba(0, 255, 136, 0.06);
+}
+
+/* Top row (icon + title) */
 .activity-top {
   display: flex;
   gap: 8px;
@@ -128,14 +116,29 @@ button:hover {
   width: 18px;
 }
 
+/* Title */
+.title {
+  font-weight: bold;
+  color: #ffffff;
+}
+
+/* Meta row (category) */
 .meta {
-  margin-top: 3px;
+  margin-top: 4px;
   font-size: 11px;
-  color: #7f8a9a;
+  color: #8a93a3;
 }
 
 .category {
-  background: #222836;
+  background: #202838;
   padding: 2px 6px;
   border-radius: 4px;
+}
+
+/* Description */
+.desc {
+  margin-top: 6px;
+  color: #a9b1bd;
+  font-size: 13px;
+  line-height: 1.35em;
 }
