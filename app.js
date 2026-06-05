@@ -55,6 +55,24 @@ document.querySelectorAll(".filters button")
     });
   });
 
+const toggleBtn = document.getElementById("toggleAuto");
+
+if (toggleBtn) {
+  toggleBtn.addEventListener("click", () => {
+    autoRefreshEnabled = !autoRefreshEnabled;
+
+    toggleBtn.textContent =
+      autoRefreshEnabled ? "Auto: ON" : "Auto: OFF";
+
+    if (autoRefreshEnabled) {
+      startAutoRefresh();
+    } else {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+  });
+}
+
 // auto-start
 loadLog();
 startAutoRefresh();
@@ -135,14 +153,20 @@ function startAutoRefresh() {
 
 function renderActivities() {
   const rsn = rsnInput.value.trim();
-  const history = getPlayerHistory(rsn);
 
-  activitiesDiv.innerHTML = "";
-
-  if (!history.length) {
-    activitiesDiv.innerHTML = "<p>No history yet.</p>";
+  if (!rsn) {
+    activitiesDiv.innerHTML = "<p>Enter a player name.</p>";
     return;
   }
+
+  const history = getPlayerHistory(rsn);
+
+  if (!history || history.length === 0) {
+    activitiesDiv.innerHTML = "<p>No history yet. Click Refresh.</p>";
+    return;
+  }
+
+  activitiesDiv.innerHTML = "";
 
   const sorted = [...history].sort(
     (a, b) => new Date(b.pubDate) - new Date(a.pubDate)
@@ -153,18 +177,12 @@ function renderActivities() {
   for (const activity of sorted) {
     const category = getCategory(activity.title);
 
-    if (currentFilter !== "all" && category !== currentFilter) {
+    if (currentFilter && currentFilter !== "all" && category !== currentFilter) {
       continue;
     }
 
     const dateObj = new Date(activity.pubDate);
-
-    const dateLabel = dateObj.toLocaleDateString(undefined, {
-      weekday: "short",
-      year: "numeric",
-      month: "short",
-      day: "numeric"
-    });
+    const dateLabel = dateObj.toDateString();
 
     if (dateLabel !== currentDate) {
       currentDate = dateLabel;
@@ -184,11 +202,9 @@ function renderActivities() {
         <span class="icon">${getIcon(category)}</span>
         <span class="title">${escapeHtml(activity.title)}</span>
       </div>
-
       <div class="meta">
         <span class="category">${category.toUpperCase()}</span>
       </div>
-
       <div class="desc">${escapeHtml(activity.description || "")}</div>
     `;
 
