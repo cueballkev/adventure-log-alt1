@@ -4,7 +4,11 @@ const refreshBtn = document.getElementById("refreshBtn");
 const activitiesDiv = document.getElementById("activities");
 const statusDiv = document.getElementById("status");
 const rsnInput = document.getElementById("rsn");
+const toggleBtn = document.getElementById("toggleAuto");
+const settingsBtn = document.getElementById("settingsBtn");
+const configPanel = document.getElementById("configPanel");
 
+let configVisible = true;
 let currentFilter = "all";
 let autoRefreshEnabled = true;
 let refreshInterval = 60000;
@@ -55,8 +59,6 @@ document.querySelectorAll(".filter-btn")
     });
   });
 
-const toggleBtn = document.getElementById("toggleAuto");
-
 if (toggleBtn) {
   toggleBtn.addEventListener("click", () => {
     autoRefreshEnabled = !autoRefreshEnabled;
@@ -72,6 +74,14 @@ if (toggleBtn) {
     }
   });
 }
+
+settingsBtn.addEventListener("click", () => {
+  configVisible = !configVisible;
+
+  configPanel.style.display = configVisible ? "block" : "none";
+
+  settingsBtn.textContent = configVisible ? "⚙️" : "⚙️✓";
+});
 
 // auto-start
 loadLog();
