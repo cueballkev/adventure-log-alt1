@@ -6,6 +6,9 @@ const statusDiv = document.getElementById("status");
 const rsnInput = document.getElementById("rsn");
 
 let currentFilter = "all";
+let autoRefreshEnabled = true;
+let refreshInterval = 60000; // 60 seconds
+let refreshTimer = null;
 
 // ------------------------
 // STORAGE HELPERS
@@ -52,16 +55,19 @@ document.querySelectorAll(".filters button")
 
 // auto load
 loadLog();
+startAutoRefresh();
 
 // ------------------------
 // LOAD RSS + MERGE HISTORY
 // ------------------------
 
-async function loadLog() {
+async function loadLog(silent = false) {
   const rsn = rsnInput.value.trim();
   if (!rsn) return;
 
-  statusDiv.textContent = "Loading...";
+  if (!silent) {
+    statusDiv.textContent = "Loading...";
+  }
 
   try {
     const response = await fetch(
@@ -90,8 +96,13 @@ async function loadLog() {
     // save back per player
     setPlayerHistory(rsn, history);
 
-    statusDiv.textContent =
-      `${history.length} total saved (${data.activities.length} latest fetched)`;
+    if (!silent) {
+      statusDiv.textContent =
+        `${history.length} total saved (${data.activities.length} latest fetched)`;
+    } else {
+      statusDiv.textContent =
+        `Auto-updated • ${new Date().toLocaleTimeString()}`;
+    }
 
     renderActivities();
 
@@ -99,6 +110,17 @@ async function loadLog() {
     console.error(err);
     statusDiv.textContent = "Failed to load activity feed";
   }
+}
+
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+
+  refreshTimer = setInterval(() => {
+    const rsn = rsnInput.value.trim();
+    if (!rsn) return;
+
+    loadLog(true); // silent refresh
+  }, refreshInterval);
 }
 
 // ------------------------
