@@ -8,20 +8,23 @@
 <body>
 
 <h1>Adventure Log</h1>
+<button id="settingsBtn" class="cog">⚙️</button>
+<div id="configPanel">
 
-<div class="toolbar">
-  <input id="rsn" value="fe cue">
-  <button id="refreshBtn">Refresh</button>
-</div>
+  <div class="toolbar">
+    <input id="rsn" placeholder="RSN">
+    <button id="refreshBtn">Refresh</button>
+    <button id="toggleAuto">Auto: ON</button>
+  </div>
 
-<div class="filters" id="filterBar">
-  <button class="filter-btn active" data-filter="all">All</button>
-  <button class="filter-btn" data-filter="boss">Boss</button>
-  <button class="filter-btn" data-filter="skill">Skill</button>
-  <button class="filter-btn" data-filter="quest">Quest</button>
-  <button class="filter-btn" data-filter="loot">Loot</button>
-  
-  <button class="active" id="toggleAuto">Auto: ON</button>
+  <div class="filters">
+    <button class="filter-btn" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="boss">Boss</button>
+    <button class="filter-btn" data-filter="skill">Skill</button>
+    <button class="filter-btn" data-filter="quest">Quest</button>
+    <button class="filter-btn" data-filter="loot">Loot</button>
+  </div>
+
 </div>
 
 <div id="status"></div>
