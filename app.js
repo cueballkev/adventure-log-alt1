@@ -227,7 +227,8 @@ function getCategory(title) {
     t.includes("obtained") ||
     t.includes("received") ||
     t.includes("dropped") ||
-    t.includes("loot")
+    t.includes("loot") ||
+    t.includes("found")
   ) return "loot";
 
   return "other";
