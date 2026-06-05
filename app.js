@@ -26,12 +26,12 @@ let lastActivities = [];
 const savedRSN = localStorage.getItem("lastRSN");
 if (savedRSN) {
   rsnInput.value = savedRSN;
-  loadLog();
-}
-else{
+
+  loadStoredHistory(); // instant display
+  loadLog();           // background refresh
+} else {
   rsnInput.focus();
 }
-
 // ------------------------
 // STORAGE (per player)
 // ------------------------
@@ -55,11 +55,28 @@ function setPlayerHistory(rsn, activities) {
   saveHistoryStore(store);
 }
 
+function loadStoredHistory() {
+  const rsn = rsnInput.value.trim();
+  if (!rsn) return;
+
+  const history = getPlayerHistory(rsn);
+
+  lastActivities = history;
+  renderActivities();
+}
+
 // ------------------------
 // INIT
 // ------------------------
 
-refreshBtn.addEventListener("click", loadLog);
+refreshBtn.addEventListener("click", () => {
+  loadStoredHistory();
+  loadLog();
+});
+
+rsnInput.addEventListener("change", () => {
+  loadStoredHistory();
+});
 
 document.querySelectorAll(".toggle").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -97,8 +114,6 @@ settingsBtn.addEventListener("click", () => {
   settingsBtn.textContent = configVisible ? "⚙️" : "⚙️✓";
 });
 
-// auto-start
-loadLog();
 startAutoRefresh();
 
 // ------------------------
@@ -108,6 +123,8 @@ startAutoRefresh();
 async function loadLog(silent = false) {
   const rsn = rsnInput.value.trim();
   if (!rsn) return;
+
+  loadStoredHistory();
 
   localStorage.setItem("lastRSN", rsn);
 
@@ -152,9 +169,10 @@ async function loadLog(silent = false) {
     }
 
   } catch (err) {
-    console.error(err);
-    if (!silent) statusDiv.textContent = "Failed to load feed";
-  }
+      console.error(err);    
+      statusDiv.textContent = "Feed unavailable • showing cached history";    
+      loadStoredHistory();
+    }
 }
 
 // ------------------------
