@@ -155,51 +155,65 @@ async function loadLog(silent = false) {
 
   localStorage.setItem("lastRSN", rsn);
 
-  if (!silent) statusDiv.textContent = "Loading...";
+  if (!silent) statusDiv.textContent = "Syncing latest activities...";
 
   try {
-    const response = await fetch(
-      `${WORKER_URL}/?rsn=${encodeURIComponent(rsn)}`
-    );
-
-    const data = await response.json();
-
-    if (!data.activities) {
-      if (!silent) statusDiv.textContent = "No data returned";
-      return;
-    }
-
-    // merge into history
     let history = getPlayerHistory(rsn);
-
     const existing = new Set(history.map(x => x.guid));
 
-    for (const item of data.activities) {
-      if (!existing.has(item.guid)) {
-        item._seq = history.length; // preserve insertion order
-        history.push(item);
+    let iterations = 0;
+    const MAX_ITERATIONS = 5;
+
+    let newItemsFound = true;
+
+    while (newItemsFound && iterations < MAX_ITERATIONS) {
+      iterations++;
+      
+      if (!silent) statusDiv.textContent = `Syncing... pass ${iterations}`;
+      
+      const response = await fetch(
+        `${WORKER_URL}/?rsn=${encodeURIComponent(rsn)}`
+      );
+
+      const data = await response.json();
+
+      if (!data.activities) break;
+
+      newItemsFound = false;
+
+      for (const item of data.activities) {
+        if (!existing.has(item.guid)) {
+          item._seq = history.length;
+          history.push(item);
+          existing.add(item.guid);
+          newItemsFound = true;
+        }
       }
+      
+      await new Promise(r => setTimeout(r, 400));
     }
 
     setPlayerHistory(rsn, history);
-
     lastActivities = history;
 
     renderActivities();
 
     if (!silent) {
       statusDiv.textContent =
-        `${history.length} saved | ${data.activities.length} fetched`;
+        `Synced • ${history.length} entries • ${iterations} pass(es)`;
     } else {
       statusDiv.textContent =
-        `Auto-updated • ${new Date().toLocaleTimeString()}`;
+        `Auto-synced • ${new Date().toLocaleTimeString()}`;
     }
 
   } catch (err) {
-      console.error(err);    
-      statusDiv.textContent = "Feed unavailable • showing cached history";    
-      loadStoredHistory();
-    }
+    console.error(err);
+
+    loadStoredHistory();
+
+    statusDiv.textContent =
+      "Sync failed • showing cached history";
+  }
 }
 
 // ------------------------
@@ -331,4 +345,8 @@ function escapeHtml(text) {
   const div = document.createElement("div");
   div.textContent = text;
   return div.innerHTML;
+}
+
+function getLastSeenGuid(history) {
+  return history.length ? history[0].guid : null;
 }
