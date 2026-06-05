@@ -155,6 +155,17 @@ function getEventKey(item) {
   return item.guid || `${item.pubDate}-${item.title}`;
 }
 
+function sortHistory(history) {
+  return history.sort((a, b) => {
+    const ta = new Date(a.pubDate).getTime();
+    const tb = new Date(b.pubDate).getTime();
+
+    if (ta !== tb) return tb - ta;
+
+    return getEventKey(b).localeCompare(getEventKey(a));
+  });
+}
+
 async function loadLog(silent = false) {
   const rsn = rsnInput.value.trim();
   if (!rsn) return;
@@ -209,9 +220,10 @@ async function loadLog(silent = false) {
       await new Promise(r => setTimeout(r, 400));
     }
 
+    history = sortHistory(history);    
     setPlayerHistory(rsn, history);
     lastActivities = history;
-
+    
     renderActivities();
 
     if (!silent) {
