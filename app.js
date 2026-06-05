@@ -53,6 +53,19 @@ document.querySelectorAll(".filters button")
     });
   });
 
+document.getElementById("toggleAuto").addEventListener("click", () => {
+  autoRefreshEnabled = !autoRefreshEnabled;
+
+  document.getElementById("toggleAuto").textContent =
+    autoRefreshEnabled ? "Auto: ON" : "Auto: OFF";
+
+  if (autoRefreshEnabled) {
+    startAutoRefresh();
+  } else {
+    clearInterval(refreshTimer);
+  }
+});
+
 // auto load
 loadLog();
 startAutoRefresh();
@@ -116,6 +129,7 @@ function startAutoRefresh() {
   if (refreshTimer) clearInterval(refreshTimer);
 
   refreshTimer = setInterval(() => {
+    if (!autoRefreshEnabled) return;
     const rsn = rsnInput.value.trim();
     if (!rsn) return;
 
