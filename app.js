@@ -9,10 +9,17 @@ const settingsBtn = document.getElementById("settingsBtn");
 const configPanel = document.getElementById("configPanel");
 
 let configVisible = true;
-let currentFilter = "all";
 let autoRefreshEnabled = true;
 let refreshInterval = 60000;
 let refreshTimer = null;
+
+let categoryVisibility = {
+  boss: true,
+  skill: true,
+  quest: true,
+  loot: true,
+  other: true
+};
 
 let lastActivities = [];
 
@@ -54,19 +61,17 @@ function setPlayerHistory(rsn, activities) {
 
 refreshBtn.addEventListener("click", loadLog);
 
-document.querySelectorAll(".filter-btn")
-  .forEach(btn => {
-    btn.addEventListener("click", () => {
-      currentFilter = btn.dataset.filter;
+document.querySelectorAll(".toggle").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const cat = btn.dataset.cat;
 
-      document.querySelectorAll(".filter-btn")
-        .forEach(b => b.classList.remove("active"));
+    categoryVisibility[cat] = !categoryVisibility[cat];
 
-      btn.classList.add("active");
+    btn.classList.toggle("off", !categoryVisibility[cat]);
 
-      renderActivities();
-    });
+    renderActivities();
   });
+});
 
 if (toggleBtn) {
   toggleBtn.addEventListener("click", () => {
@@ -196,7 +201,7 @@ function renderActivities() {
   for (const activity of sorted) {
     const category = getCategory(activity.title);
 
-    if (currentFilter !== "all" && category !== currentFilter) {
+    if (!categoryVisibility[category]) {
       continue;
     }
 
@@ -251,20 +256,67 @@ function renderActivities() {
 // CATEGORY LOGIC
 // ------------------------
 
-function getCategory(title) {
-  const t = title.toLowerCase();
+function getCategory(title, description = "") {
+  const text = (title + " " + description).toLowerCase();
 
-  if (t.includes("killed") || t.includes("defeated")) return "boss";
-  if (t.includes("level") || t.includes("advanced")) return "skill";
-  if (t.includes("quest")) return "quest";
+  // -------------------------
+  // SKILL LIST (RuneScape core skills)
+  // -------------------------
+  const skills = [
+    "attack","strength","defence","defense","ranged","magic",
+    "constitution","hitpoints","prayer","summoning","dungeoneering",
+    "agility","herblore","thieving","crafting","fletching","slayer",
+    "hunter","construction","farming","runecrafting","divination",
+    "archaeology","necromancy"
+  ];
+
+  // -------------------------
+  // SKILL / XP DETECTION
+  // -------------------------
+  if (
+    /\d+\s*xp/i.test(text) ||               // "92000000XP"
+    text.includes("experience points") ||
+    text.includes("gained experience") ||
+    skills.some(s => text.includes(s))
+  ) {
+    return "skill";
+  }
+
+  // -------------------------
+  // BOSSES
+  // -------------------------
+  const bosses = [
+    "nakatra","zamorak","telos","raksha","solak","nex",
+    "vorago","kalphite","gregorovic","vindicta","arch glacor"
+  ];
 
   if (
-    t.includes("obtained") ||
-    t.includes("received") ||
-    t.includes("dropped") ||
-    t.includes("loot") ||
-    t.includes("found")
-  ) return "loot";
+    text.includes("killed") ||
+    text.includes("defeated") ||
+    bosses.some(b => text.includes(b))
+  ) {
+    return "boss";
+  }
+
+  // -------------------------
+  // QUESTS
+  // -------------------------
+  if (text.includes("quest")) {
+    return "quest";
+  }
+
+  // -------------------------
+  // LOOT / ITEMS
+  // -------------------------
+  if (
+    text.includes("obtained") ||
+    text.includes("received") ||
+    text.includes("dropped") ||
+    text.includes("loot") ||
+    text.includes("awarded")
+  ) {
+    return "loot";
+  }
 
   return "other";
 }
@@ -275,7 +327,7 @@ function getIcon(category) {
     case "skill": return "📈";
     case "quest": return "📜";
     case "loot": return "🎁";
-    default: return "•";
+    default: return "❓";
   }
 }
 
