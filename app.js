@@ -147,6 +147,14 @@ startAutoRefresh();
 // LOAD DATA (RSS → HISTORY)
 // ------------------------
 
+function getLastSeenGuid(history) {
+  return history.length ? history[0].guid : null;
+}
+
+function getEventKey(item) {
+  return item.guid || `${item.pubDate}-${item.title}`;
+}
+
 async function loadLog(silent = false) {
   const rsn = rsnInput.value.trim();
   if (!rsn) return;
@@ -155,11 +163,15 @@ async function loadLog(silent = false) {
 
   localStorage.setItem("lastRSN", rsn);
 
-  if (!silent) statusDiv.textContent = "Syncing latest activities...";
+  if (!silent) {
+    statusDiv.textContent = "Syncing latest activities...";
+  }
 
   try {
     let history = getPlayerHistory(rsn);
-    const existing = new Set(history.map(x => x.guid));
+
+    // ✅ use canonical key system
+    const existing = new Set(history.map(getEventKey));
 
     let iterations = 0;
     const MAX_ITERATIONS = 5;
@@ -168,9 +180,11 @@ async function loadLog(silent = false) {
 
     while (newItemsFound && iterations < MAX_ITERATIONS) {
       iterations++;
-      
-      if (!silent) statusDiv.textContent = `Syncing... pass ${iterations}`;
-      
+
+      if (!silent) {
+        statusDiv.textContent = `Syncing... pass ${iterations}`;
+      }
+
       const response = await fetch(
         `${WORKER_URL}/?rsn=${encodeURIComponent(rsn)}`
       );
@@ -182,14 +196,16 @@ async function loadLog(silent = false) {
       newItemsFound = false;
 
       for (const item of data.activities) {
-        if (!existing.has(item.guid)) {
-          item._seq = history.length;
+        const key = getEventKey(item);
+
+        if (!existing.has(key)) {
+          existing.add(key);
           history.push(item);
-          existing.add(item.guid);
           newItemsFound = true;
         }
       }
-      
+
+      // small delay between passes
       await new Promise(r => setTimeout(r, 400));
     }
 
@@ -249,9 +265,13 @@ function renderActivities() {
   }
 
   const sorted = [...history].sort((a, b) => {
-    const dateDiff = new Date(b.pubDate) - new Date(a.pubDate);
-    if (dateDiff !== 0) return dateDiff;
-    return (b._seq ?? 0) - (a._seq ?? 0);
+    const ta = new Date(a.pubDate).getTime();
+    const tb = new Date(b.pubDate).getTime();
+  
+    if (ta !== tb) return tb - ta;
+  
+    // deterministic tie-breaker
+    return getEventKey(b).localeCompare(getEventKey(a));
   });
 
   let currentDate = "";
@@ -347,6 +367,3 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-function getLastSeenGuid(history) {
-  return history.length ? history[0].guid : null;
-}
