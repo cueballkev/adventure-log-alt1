@@ -251,15 +251,12 @@ function renderActivities(map) {
     const ta = new Date(a.pubDate).getTime();
     const tb = new Date(b.pubDate).getTime();
 
-    // 1. date (newest first)
     if (ta !== tb) return tb - ta;
 
-    // 2. batch (newest sync first)
     if (a._batchId !== b._batchId) {
       return b._batchId - a._batchId;
     }
 
-    // 3. RSS order within batch
     return (a._batchOrder ?? 0) - (b._batchOrder ?? 0);
   });
 
@@ -267,6 +264,14 @@ function renderActivities(map) {
   let container = null;
 
   for (const activity of sorted) {
+
+    // ✅ RESTORED CATEGORY FILTER
+    const category = getCategory(activity.title);
+
+    if (!categoryVisibility[category]) {
+      continue;
+    }
+
     const dateLabel = new Date(activity.pubDate).toDateString();
 
     if (dateLabel !== currentDate) {
@@ -292,6 +297,7 @@ function renderActivities(map) {
 
     div.innerHTML = `
       <div class="activity-top">
+        <span class="icon">${getIcon(category)}</span>
         <span class="title">${escapeHtml(activity.title)}</span>
       </div>
       <div class="desc">${escapeHtml(activity.description || "")}</div>
