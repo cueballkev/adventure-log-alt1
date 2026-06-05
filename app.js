@@ -1,5 +1,32 @@
 const WORKER_URL = "https://divine-snow-39fc.kevtrix15.workers.dev/";
 
+const KNOWN_BOSSES = [
+  "nakatra","zamorak","telos","raksha","solak","kerapac",
+  "nex","vorago","arch glacor","vindicta","gregorovic","kalphite king"
+];
+
+const TITLE_RULES = [
+  ["skill", t => /\d+\s*xp\b/i.test(t)],
+  ["skill", t => t.includes("advanced a level")],
+  ["skill", t => t.includes("levelled")],
+  ["skill", t => t.includes("level up")],
+  ["skill", t => t.includes("experience points")],
+
+  ["boss", t => KNOWN_BOSSES.some(b => t.includes(b))],
+  ["boss", t => t.startsWith("i killed ")],
+  ["boss", t => t.startsWith("i defeated ")],
+  ["boss", t => t.includes("boss kill")],
+
+  ["quest", t => t.includes("quest")],
+  ["quest", t => t.startsWith("i completed ")],
+
+  ["loot", t => t.startsWith("i found ")],
+  ["loot", t => t.startsWith("i obtained ")],
+  ["loot", t => t.startsWith("i received ")],
+  ["loot", t => t.startsWith("i was awarded ")],
+  ["loot", t => t.includes(" drop")]
+];
+
 const refreshBtn = document.getElementById("refreshBtn");
 const activitiesDiv = document.getElementById("activities");
 const statusDiv = document.getElementById("status");
@@ -273,33 +300,6 @@ function renderActivities() {
 // ------------------------
 // CATEGORY LOGIC
 // ------------------------
-
-const KNOWN_BOSSES = [
-  "nakatra","zamorak","telos","raksha","solak","kerapac",
-  "nex","vorago","arch glacor","vindicta","gregorovic","kalphite king"
-];
-
-const TITLE_RULES = [
-  ["skill", t => /\d+\s*xp\b/i.test(t)],
-  ["skill", t => t.includes("advanced a level")],
-  ["skill", t => t.includes("levelled")],
-  ["skill", t => t.includes("level up")],
-  ["skill", t => t.includes("experience points")],
-
-  ["boss", t => KNOWN_BOSSES.some(b => t.includes(b))],
-  ["boss", t => t.startsWith("i killed ")],
-  ["boss", t => t.startsWith("i defeated ")],
-  ["boss", t => t.includes("boss kill")],
-
-  ["quest", t => t.includes("quest")],
-  ["quest", t => t.startsWith("i completed ")],
-
-  ["loot", t => t.startsWith("i found ")],
-  ["loot", t => t.startsWith("i obtained ")],
-  ["loot", t => t.startsWith("i received ")],
-  ["loot", t => t.startsWith("i was awarded ")],
-  ["loot", t => t.includes(" drop")]
-];
 
 function getCategory(title) {
   const t = title.trim().toLowerCase();
