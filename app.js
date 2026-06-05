@@ -3,17 +3,36 @@ const WORKER_URL = "https://divine-snow-39fc.kevtrix15.workers.dev/";
 const refreshBtn = document.getElementById("refreshBtn");
 const activitiesDiv = document.getElementById("activities");
 const statusDiv = document.getElementById("status");
+const rsnInput = document.getElementById("rsn");
 
 let currentFilter = "all";
-let lastActivities = [];
 
-let seenGuids = new Set(
-  JSON.parse(localStorage.getItem("seenGuids") || "[]")
-);
+// ------------------------
+// STORAGE HELPERS
+// ------------------------
 
-// --------------------
+function loadHistoryStore() {
+  return JSON.parse(localStorage.getItem("historyByPlayer") || "{}");
+}
+
+function saveHistoryStore(store) {
+  localStorage.setItem("historyByPlayer", JSON.stringify(store));
+}
+
+function getPlayerHistory(rsn) {
+  const store = loadHistoryStore();
+  return store[rsn] || [];
+}
+
+function setPlayerHistory(rsn, activities) {
+  const store = loadHistoryStore();
+  store[rsn] = activities;
+  saveHistoryStore(store);
+}
+
+// ------------------------
 // EVENTS
-// --------------------
+// ------------------------
 
 refreshBtn.addEventListener("click", loadLog);
 
@@ -27,19 +46,19 @@ document.querySelectorAll(".filters button")
 
       btn.classList.add("active");
 
-      renderActivities(lastActivities);
+      renderActivities();
     });
   });
 
-// auto-load
+// auto load
 loadLog();
 
-// --------------------
-// LOAD RSS DATA
-// --------------------
+// ------------------------
+// LOAD RSS + MERGE HISTORY
+// ------------------------
 
 async function loadLog() {
-  const rsn = document.getElementById("rsn").value.trim();
+  const rsn = rsnInput.value.trim();
   if (!rsn) return;
 
   statusDiv.textContent = "Loading...";
@@ -56,26 +75,25 @@ async function loadLog() {
       return;
     }
 
-    lastActivities = data.activities;
+    // load existing history
+    let history = getPlayerHistory(rsn);
 
-    renderActivities(lastActivities);
+    // merge new activities (avoid duplicates by GUID)
+    const existingGuids = new Set(history.map(x => x.guid));
 
-    // detect new items
-    const newItems = data.activities.filter(
-      a => !seenGuids.has(a.guid)
-    );
-
-    for (const item of newItems) {
-      seenGuids.add(item.guid);
+    for (const item of data.activities) {
+      if (!existingGuids.has(item.guid)) {
+        history.push(item);
+      }
     }
 
-    localStorage.setItem(
-      "seenGuids",
-      JSON.stringify([...seenGuids])
-    );
+    // save back per player
+    setPlayerHistory(rsn, history);
 
     statusDiv.textContent =
-      `${data.activities.length} loaded | ${newItems.length} new`;
+      `${history.length} total saved (${data.activities.length} latest fetched)`;
+
+    renderActivities();
 
   } catch (err) {
     console.error(err);
@@ -83,19 +101,22 @@ async function loadLog() {
   }
 }
 
-// --------------------
-// RENDER UI
-// --------------------
+// ------------------------
+// RENDER (from history)
+// ------------------------
 
-function renderActivities(activities) {
+function renderActivities() {
+  const rsn = rsnInput.value.trim();
+  const history = getPlayerHistory(rsn);
+
   activitiesDiv.innerHTML = "";
 
-  if (!activities || activities.length === 0) {
-    activitiesDiv.innerHTML = "<p>No activity found.</p>";
+  if (!history.length) {
+    activitiesDiv.innerHTML = "<p>No history yet.</p>";
     return;
   }
 
-  const sorted = [...activities].sort(
+  const sorted = [...history].sort(
     (a, b) => new Date(b.pubDate) - new Date(a.pubDate)
   );
 
@@ -104,7 +125,6 @@ function renderActivities(activities) {
   for (const activity of sorted) {
     const category = getCategory(activity.title);
 
-    // filter logic
     if (currentFilter !== "all" && category !== currentFilter) {
       continue;
     }
@@ -118,7 +138,6 @@ function renderActivities(activities) {
       day: "numeric"
     });
 
-    // date grouping
     if (dateLabel !== currentDate) {
       currentDate = dateLabel;
 
@@ -129,10 +148,8 @@ function renderActivities(activities) {
       activitiesDiv.appendChild(header);
     }
 
-    const isNew = !seenGuids.has(activity.guid);
-
     const div = document.createElement("div");
-    div.className = "activity" + (isNew ? " new" : "");
+    div.className = "activity";
 
     div.innerHTML = `
       <div class="activity-top">
@@ -151,9 +168,9 @@ function renderActivities(activities) {
   }
 }
 
-// --------------------
+// ------------------------
 // CATEGORY SYSTEM
-// --------------------
+// ------------------------
 
 function getCategory(title) {
   const t = title.toLowerCase();
@@ -188,9 +205,9 @@ function getIcon(category) {
   }
 }
 
-// --------------------
+// ------------------------
 // UTIL
-// --------------------
+// ------------------------
 
 function escapeHtml(text) {
   const div = document.createElement("div");
