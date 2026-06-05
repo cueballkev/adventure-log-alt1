@@ -43,15 +43,45 @@ async function loadLog() {
 function renderActivities(activities) {
   activitiesDiv.innerHTML = "";
 
-  for (const activity of activities) {
+  if (!activities || activities.length === 0) {
+    activitiesDiv.innerHTML = "<p>No activity found.</p>";
+    return;
+  }
+
+  // sort newest first
+  const sorted = [...activities].sort(
+    (a, b) => new Date(b.pubDate) - new Date(a.pubDate)
+  );
+
+  let currentDate = "";
+
+  for (const activity of sorted) {
+    const dateObj = new Date(activity.pubDate);
+
+    const dateLabel = dateObj.toLocaleDateString(undefined, {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    });
+
+    // new day header
+    if (dateLabel !== currentDate) {
+      currentDate = dateLabel;
+
+      const header = document.createElement("div");
+      header.className = "date-header";
+      header.textContent = dateLabel;
+
+      activitiesDiv.appendChild(header);
+    }
 
     const div = document.createElement("div");
     div.className = "activity";
 
     div.innerHTML = `
-      <div><strong>${escapeHtml(activity.title)}</strong></div>
-      <div>${escapeHtml(activity.description)}</div>
-      <div class="date">${activity.pubDate}</div>
+      <div class="title">${escapeHtml(activity.title)}</div>
+      <div class="desc">${escapeHtml(activity.description || "")}</div>
     `;
 
     activitiesDiv.appendChild(div);
