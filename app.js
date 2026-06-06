@@ -1,8 +1,8 @@
 const WORKER_URL = "https://divine-snow-39fc.kevtrix15.workers.dev/";
 
 const KNOWN_BOSSES = [
-  "nakatra","zamorak","telos","raksha","solak","kerapac",
-  "nex","vorago","arch glacor","vindicta","gregorovic","kalphite king"
+  "nakatra", "zamorak", "telos", "raksha", "solak", "kerapac",
+  "nex", "vorago", "arch glacor", "vindicta", "gregorovic", "kalphite king"
 ];
 
 const TITLE_RULES = [
@@ -48,90 +48,71 @@ let categoryVisibility = {
   other: true
 };
 
-const savedRSN = localStorage.getItem("lastRSN");
+// ------------------------
+// DATE PARSING
+// ------------------------
 
-if (savedRSN) {
-  rsnInput.value = savedRSN;
+function parseActivityDate(value) {
 
-  const store = loadStore(savedRSN);
-  renderActivities(store);   // instant UI from cache
+  if (!value) {
+    return new Date(0);
+  }
 
-  loadLog(); // then sync in background
-} else {
-  rsnInput.focus();
+  const months = {
+    Jan: 0,
+    Feb: 1,
+    Mar: 2,
+    Apr: 3,
+    May: 4,
+    Jun: 5,
+    Jul: 6,
+    Aug: 7,
+    Sep: 8,
+    Oct: 9,
+    Nov: 10,
+    Dec: 11
+  };
+
+  const match = value.match(
+    /^(\d{2})-([A-Za-z]{3})-(\d{4}) (\d{2}):(\d{2})$/
+  );
+
+  if (match) {
+    const [, day, month, year, hour, minute] = match;
+
+    return new Date(
+      Number(year),
+      months[month],
+      Number(day),
+      Number(hour),
+      Number(minute)
+    );
+  }
+
+  return new Date(value);
 }
 
 // ------------------------
-// INIT
-// ------------------------
-
-refreshBtn.addEventListener("click", () => {
-  const rsn = rsnInput.value.trim();
-  if (!rsn) return;
-
-  const store = loadStore(rsn);
-  renderActivities(store); // instant cached view
-  loadLog();               // then sync
-});
-
-rsnInput.addEventListener("change", () => {
-  const rsn = rsnInput.value.trim();
-  if (!rsn) return;
-
-  const store = loadStore(rsn);
-  renderActivities(store);
-  loadLog();
-});
-
-document.querySelectorAll(".toggle").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const cat = btn.dataset.cat;
-
-    categoryVisibility[cat] = !categoryVisibility[cat];
-
-    btn.classList.toggle("off", !categoryVisibility[cat]);
-
-    renderActivities(loadStore(rsnInput.value.trim()));
-  });
-});
-
-if (toggleBtn) {
-  toggleBtn.addEventListener("click", () => {
-    autoRefreshEnabled = !autoRefreshEnabled;
-
-    toggleBtn.textContent = autoRefreshEnabled ? "Auto: ON" : "Auto: OFF";
-    toggleBtn.classList.toggle("active", autoRefreshEnabled);
-
-    if (autoRefreshEnabled) {
-      startAutoRefresh();
-    } else {
-      clearInterval(refreshTimer);
-      refreshTimer = null;
-    }
-  });
-}
-
-settingsBtn.addEventListener("click", () => {
-  configVisible = !configVisible;
-
-  configPanel.style.display = configVisible ? "block" : "none";
-
-  settingsBtn.textContent = configVisible ? "⚙️" : "⚙️✓";
-});
-
-startAutoRefresh();
-
-// ------------------------
-// LOAD DATA (RSS → HISTORY)
+// STORAGE
 // ------------------------
 
 function loadStore(rsn) {
   const raw = localStorage.getItem(`history_${rsn}`);
-  if (!raw) return new Map();
+
+  if (!raw) {
+    return new Map();
+  }
 
   try {
-    return new Map(JSON.parse(raw));
-  } catch {
+    const map = new Map(JSON.parse(raw));
+
+    if (migrateStore(map)) {
+      saveStore(rsn, map);
+    }
+
+    return map;
+  }
+  catch {
     return new Map();
   }
 }
@@ -143,71 +124,186 @@ function saveStore(rsn, map) {
   );
 }
 
-function getEventKey(item) {
-  return item.guid || `${item.pubDate}-${item.title}`;
+function migrateStore(map) {
+
+  let changed = false;
+
+  for (const item of map.values()) {
+
+    if (!item.activityDate && item.pubDate) {
+
+      item.activityDate = item.pubDate;
+      item.timeEstimated = true;
+
+      delete item.pubDate;
+      delete item.guid;
+      delete item._batchId;
+      delete item._batchOrder;
+
+      changed = true;
+    }
+  }
+
+  return changed;
 }
 
-async function loadLog(silent = false) {
+function getEventKey(item) {
+  return `${item.activityDate}|${item.title}`;
+}
+
+// ------------------------
+// INIT
+// ------------------------
+
+const savedRSN = localStorage.getItem("lastRSN");
+
+if (savedRSN) {
+  rsnInput.value = savedRSN;
+
+  const store = loadStore(savedRSN);
+  renderActivities(store);
+
+  loadLog();
+} else {
+  rsnInput.focus();
+}
+
+refreshBtn.addEventListener("click", () => {
   const rsn = rsnInput.value.trim();
-  if (!rsn) return;
+
+  if (!rsn) {
+    return;
+  }
+
+  renderActivities(loadStore(rsn));
+  loadLog();
+});
+
+rsnInput.addEventListener("change", () => {
+  const rsn = rsnInput.value.trim();
+
+  if (!rsn) {
+    return;
+  }
+
+  renderActivities(loadStore(rsn));
+  loadLog();
+});
+
+document.querySelectorAll(".toggle").forEach(btn => {
+  btn.addEventListener("click", () => {
+
+    const cat = btn.dataset.cat;
+
+    categoryVisibility[cat] =
+      !categoryVisibility[cat];
+
+    btn.classList.toggle(
+      "off",
+      !categoryVisibility[cat]
+    );
+
+    renderActivities(
+      loadStore(rsnInput.value.trim())
+    );
+  });
+});
+
+if (toggleBtn) {
+  toggleBtn.addEventListener("click", () => {
+
+    autoRefreshEnabled = !autoRefreshEnabled;
+
+    toggleBtn.textContent =
+      autoRefreshEnabled
+        ? "Auto: ON"
+        : "Auto: OFF";
+
+    toggleBtn.classList.toggle(
+      "active",
+      autoRefreshEnabled
+    );
+
+    if (autoRefreshEnabled) {
+      startAutoRefresh();
+    }
+    else {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+  });
+}
+
+settingsBtn.addEventListener("click", () => {
+
+  configVisible = !configVisible;
+
+  configPanel.style.display =
+    configVisible
+      ? "block"
+      : "none";
+
+  settingsBtn.textContent =
+    configVisible
+      ? "⚙️"
+      : "⚙️✓";
+});
+
+startAutoRefresh();
+
+// ------------------------
+// LOAD DATA
+// ------------------------
+
+async function loadLog(silent = false) {
+
+  const rsn = rsnInput.value.trim();
+
+  if (!rsn) {
+    return;
+  }
 
   localStorage.setItem("lastRSN", rsn);
 
-  let store = loadStore(rsn);
+  const store = loadStore(rsn);
 
   if (!silent) {
-    statusDiv.textContent = "Syncing latest activities...";
+    statusDiv.textContent =
+      "Syncing latest activities...";
   }
 
   try {
-    let iterations = 0;
-    const MAX_ITERATIONS = 5;
-    let newItemsFound = true;
 
-    while (newItemsFound && iterations < MAX_ITERATIONS) {
-      iterations++;
+    const response = await fetch(
+      `${WORKER_URL}/?rsn=${encodeURIComponent(rsn)}`
+    );
 
-      if (!silent) {
-        statusDiv.textContent = `Syncing... pass ${iterations}`;
-      }
+    const data = await response.json();
 
-      const response = await fetch(
-        `${WORKER_URL}/?rsn=${encodeURIComponent(rsn)}`
-      );
+    if (data.activities) {
 
-      const data = await response.json();
-      if (!data.activities) break;
+      data.activities.forEach(item => {
 
-      newItemsFound = false;
-
-      const batchId = Date.now(); // snapshot identifier
-
-      data.activities.forEach((item, index) => {
         const key = getEventKey(item);
 
         if (!store.has(key)) {
-          store.set(key, {
-            ...item,
-            _batchId: batchId,
-            _batchOrder: index
-          });
-
-          newItemsFound = true;
+          store.set(key, item);
         }
       });
-
-      await new Promise(r => setTimeout(r, 300));
     }
 
     saveStore(rsn, store);
 
     renderActivities(store);
 
-    statusDiv.textContent = silent
-      ? `Auto-synced • ${new Date().toLocaleTimeString()}`
-      : `Synced • ${store.size} entries • ${iterations} pass(es)`;
+    statusDiv.textContent =
+      silent
+        ? `Auto-synced • ${new Date().toLocaleTimeString()}`
+        : `Synced • ${store.size} entries`;
 
-  } catch (err) {
+  }
+  catch (err) {
+
     console.error(err);
 
     renderActivities(store);
@@ -222,77 +318,91 @@ async function loadLog(silent = false) {
 // ------------------------
 
 function startAutoRefresh() {
-  if (refreshTimer) clearInterval(refreshTimer);
+
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+  }
 
   refreshTimer = setInterval(() => {
-    if (!autoRefreshEnabled) return;
+
+    if (!autoRefreshEnabled) {
+      return;
+    }
 
     const rsn = rsnInput.value.trim();
-    if (!rsn) return;
+
+    if (!rsn) {
+      return;
+    }
 
     loadLog(true);
+
   }, refreshInterval);
 }
 
 // ------------------------
-// RENDER UI (ONLY UI WORK HERE)
+// RENDER
 // ------------------------
 
 function renderActivities(map) {
-  const activitiesDiv = document.getElementById("activities");
+
   activitiesDiv.innerHTML = "";
 
   if (!map || map.size === 0) {
-    activitiesDiv.innerHTML = "<p>No history yet.</p>";
+    activitiesDiv.innerHTML =
+      "<p>No history yet.</p>";
     return;
   }
 
-  const sorted = [...map.values()].sort((a, b) => {
-    const ta = new Date(a.pubDate).getTime();
-    const tb = new Date(b.pubDate).getTime();
-
-    if (ta !== tb) return tb - ta;
-
-    if (a._batchId !== b._batchId) {
-      return b._batchId - a._batchId;
-    }
-
-    return (a._batchOrder ?? 0) - (b._batchOrder ?? 0);
-  });
+  const sorted = [...map.values()]
+    .sort((a, b) =>
+      parseActivityDate(b.activityDate).getTime() -
+      parseActivityDate(a.activityDate).getTime()
+    );
 
   let currentDate = "";
   let container = null;
 
   for (const activity of sorted) {
 
-    // ✅ RESTORED CATEGORY FILTER
-    const category = getCategory(activity.title);
+    const category =
+      getCategory(activity.title);
 
     if (!categoryVisibility[category]) {
       continue;
     }
 
-    const dateLabel = new Date(activity.pubDate).toDateString();
+    const dateLabel =
+      parseActivityDate(
+        activity.activityDate
+      ).toDateString();
 
     if (dateLabel !== currentDate) {
+
       currentDate = dateLabel;
 
       container = document.createElement("div");
       container.className = "day-block";
 
-      const header = document.createElement("div");
+      const header =
+        document.createElement("div");
+
       header.className = "date-header";
       header.textContent = dateLabel;
 
-      const list = document.createElement("div");
+      const list =
+        document.createElement("div");
+
       list.className = "day-list";
 
       container.appendChild(header);
       container.appendChild(list);
+
       activitiesDiv.appendChild(container);
     }
 
     const div = document.createElement("div");
+
     div.className = "activity";
 
     div.innerHTML = `
@@ -303,7 +413,9 @@ function renderActivities(map) {
       <div class="desc">${escapeHtml(activity.description || "")}</div>
     `;
 
-    container.querySelector(".day-list").appendChild(div);
+    container
+      .querySelector(".day-list")
+      .appendChild(div);
   }
 }
 
@@ -312,9 +424,12 @@ function renderActivities(map) {
 // ------------------------
 
 function getCategory(title) {
-  const t = title.trim().toLowerCase();
+
+  const t =
+    title.trim().toLowerCase();
 
   for (const [category, test] of TITLE_RULES) {
+
     if (test(t)) {
       return category;
     }
@@ -324,12 +439,23 @@ function getCategory(title) {
 }
 
 function getIcon(category) {
+
   switch (category) {
-    case "boss": return "⚔️";
-    case "skill": return "📈";
-    case "quest": return "📜";
-    case "loot": return "🎁";
-    default: return "❓";
+
+    case "boss":
+      return "⚔️";
+
+    case "skill":
+      return "📈";
+
+    case "quest":
+      return "📜";
+
+    case "loot":
+      return "🎁";
+
+    default:
+      return "❓";
   }
 }
 
@@ -338,8 +464,11 @@ function getIcon(category) {
 // ------------------------
 
 function escapeHtml(text) {
-  const div = document.createElement("div");
+
+  const div =
+    document.createElement("div");
+
   div.textContent = text;
+
   return div.innerHTML;
 }
-
