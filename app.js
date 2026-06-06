@@ -106,8 +106,10 @@ function loadStore(rsn) {
   try {
     const map = new Map(JSON.parse(raw));
 
-    if (migrateStore(map)) {
-      saveStore(rsn, map);
+    // Old RSS cache detected
+    if ([...map.values()].some(x => x.pubDate)) {
+      localStorage.removeItem(`history_${rsn}`);
+      return new Map();
     }
 
     return map;
@@ -122,29 +124,6 @@ function saveStore(rsn, map) {
     `history_${rsn}`,
     JSON.stringify([...map.entries()])
   );
-}
-
-function migrateStore(map) {
-
-  let changed = false;
-
-  for (const item of map.values()) {
-
-    if (!item.activityDate && item.pubDate) {
-
-      item.activityDate = item.pubDate;
-      item.timeEstimated = true;
-
-      delete item.pubDate;
-      delete item.guid;
-      delete item._batchId;
-      delete item._batchOrder;
-
-      changed = true;
-    }
-  }
-
-  return changed;
 }
 
 function getEventKey(item) {
