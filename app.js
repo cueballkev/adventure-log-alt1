@@ -40,6 +40,10 @@ let autoRefreshEnabled = true;
 let refreshInterval = 60000;
 let refreshTimer = null;
 
+const PAGE_SIZE = 5;
+let visibleCount = PAGE_SIZE;
+const collapsedDates = new Set();
+
 let categoryVisibility = {
   boss: true,
   skill: true,
@@ -90,6 +94,19 @@ function parseActivityDate(value) {
   }
 
   return new Date(value);
+}
+
+function formatActivityTime(activityDate) {
+  return parseActivityDate(activityDate)
+    .toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+}
+
+function getDateKey(activityDate) {
+  return parseActivityDate(activityDate)
+    .toDateString();
 }
 
 // ------------------------
@@ -149,23 +166,21 @@ if (savedRSN) {
 
 refreshBtn.addEventListener("click", () => {
   const rsn = rsnInput.value.trim();
-
-  if (!rsn) {
-    return;
-  }
-
-  renderActivities(loadStore(rsn));
+  if (!rsn) return;
+  
+  const store = loadStore(rsn);
+  renderActivities(store);
   loadLog();
 });
 
 rsnInput.addEventListener("change", () => {
   const rsn = rsnInput.value.trim();
+  if (!rsn) return;
 
-  if (!rsn) {
-    return;
-  }
-
-  renderActivities(loadStore(rsn));
+  visibleCount = PAGE_SIZE;
+  
+  const store = loadStore(rsn);  
+  renderActivities(store);  
   loadLog();
 });
 
@@ -328,8 +343,7 @@ function renderActivities(map) {
   activitiesDiv.innerHTML = "";
 
   if (!map || map.size === 0) {
-    activitiesDiv.innerHTML =
-      "<p>No history yet.</p>";
+    activitiesDiv.innerHTML = "<p>No history yet.</p>";
     return;
   }
 
@@ -339,10 +353,13 @@ function renderActivities(map) {
       parseActivityDate(a.activityDate).getTime()
     );
 
+  const visibleActivities =
+    sorted.slice(0, visibleCount);
+
   let currentDate = "";
   let container = null;
 
-  for (const activity of sorted) {
+  for (const activity of visibleActivities) {
 
     const category =
       getCategory(activity.title);
@@ -352,9 +369,7 @@ function renderActivities(map) {
     }
 
     const dateLabel =
-      parseActivityDate(
-        activity.activityDate
-      ).toDateString();
+      getDateKey(activity.activityDate);
 
     if (dateLabel !== currentDate) {
 
@@ -366,13 +381,33 @@ function renderActivities(map) {
       const header =
         document.createElement("div");
 
-      header.className = "date-header";
-      header.textContent = dateLabel;
+      header.className =
+        "date-header collapsible";
+
+      const collapsed =
+        collapsedDates.has(dateLabel);
+
+      header.textContent =
+        `${collapsed ? "▶" : "▼"} ${dateLabel}`;
 
       const list =
         document.createElement("div");
 
-      list.className = "day-list";
+      list.className =
+        collapsed
+          ? "day-list collapsed"
+          : "day-list";
+
+      header.addEventListener("click", () => {
+
+        if (collapsedDates.has(dateLabel)) {
+          collapsedDates.delete(dateLabel);
+        } else {
+          collapsedDates.add(dateLabel);
+        }
+
+        renderActivities(map);
+      });
 
       container.appendChild(header);
       container.appendChild(list);
@@ -389,12 +424,40 @@ function renderActivities(map) {
         <span class="icon">${getIcon(category)}</span>
         <span class="title">${escapeHtml(activity.title)}</span>
       </div>
-      <div class="desc">${escapeHtml(activity.description || "")}</div>
+
+      <div class="meta">
+        ${formatActivityTime(activity.activityDate)}
+      </div>
+
+      <div class="desc">
+        ${escapeHtml(activity.description || "")}
+      </div>
     `;
 
     container
       .querySelector(".day-list")
       .appendChild(div);
+  }
+
+  if (sorted.length > visibleCount) {
+
+    const btn =
+      document.createElement("button");
+
+    btn.textContent =
+      `Show More`;
+
+    btn.style.width = "100%";
+    btn.style.marginTop = "10px";
+
+    btn.addEventListener("click", () => {
+
+      visibleCount += PAGE_SIZE;
+
+      renderActivities(map);
+    });
+
+    activitiesDiv.appendChild(btn);
   }
 }
 
