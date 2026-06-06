@@ -52,8 +52,8 @@ let refreshInterval = 60000;
 let refreshTimer = null;
 let configVisible = true; 
 
-let visibleCount = 5;
-const PAGE_SIZE = 5;
+let visibleCount = 20;
+const PAGE_SIZE = 20;
 
 let collapsedDates = new Set();
 
