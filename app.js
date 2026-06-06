@@ -1,5 +1,9 @@
 const WORKER_URL = "https://divine-snow-39fc.kevtrix15.workers.dev/";
 
+/*************************************************
+ * BOSSES + RULES
+ *************************************************/
+
 const KNOWN_BOSSES = [
   "nakatra", "zamorak", "telos", "raksha", "solak", "kerapac",
   "nex", "vorago", "arch glacor", "vindicta", "gregorovic", "kalphite king"
@@ -27,6 +31,10 @@ const TITLE_RULES = [
   ["loot", t => t.includes(" drop")]
 ];
 
+/*************************************************
+ * DOM
+ *************************************************/
+
 const refreshBtn = document.getElementById("refreshBtn");
 const activitiesDiv = document.getElementById("activities");
 const statusDiv = document.getElementById("status");
@@ -35,14 +43,19 @@ const toggleBtn = document.getElementById("toggleAuto");
 const settingsBtn = document.getElementById("settingsBtn");
 const configPanel = document.getElementById("configPanel");
 
-let configVisible = true;
+/*************************************************
+ * STATE
+ *************************************************/
+
 let autoRefreshEnabled = true;
 let refreshInterval = 60000;
 let refreshTimer = null;
+let configVisible = true; 
 
+let visibleCount = 5;
 const PAGE_SIZE = 5;
-let visibleCount = PAGE_SIZE;
-const collapsedDates = new Set();
+
+let collapsedDates = new Set();
 
 let categoryVisibility = {
   boss: true,
@@ -52,86 +65,17 @@ let categoryVisibility = {
   other: true
 };
 
-// ------------------------
-// DATE PARSING
-// ------------------------
-
-function parseActivityDate(value) {
-
-  if (!value) {
-    return new Date(0);
-  }
-
-  const months = {
-    Jan: 0,
-    Feb: 1,
-    Mar: 2,
-    Apr: 3,
-    May: 4,
-    Jun: 5,
-    Jul: 6,
-    Aug: 7,
-    Sep: 8,
-    Oct: 9,
-    Nov: 10,
-    Dec: 11
-  };
-
-  const match = value.match(
-    /^(\d{2})-([A-Za-z]{3})-(\d{4}) (\d{2}):(\d{2})$/
-  );
-
-  if (match) {
-    const [, day, month, year, hour, minute] = match;
-
-    return new Date(
-      Number(year),
-      months[month],
-      Number(day),
-      Number(hour),
-      Number(minute)
-    );
-  }
-
-  return new Date(value);
-}
-
-function formatActivityTime(activityDate) {
-  return parseActivityDate(activityDate)
-    .toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-}
-
-function getDateKey(activityDate) {
-  return parseActivityDate(activityDate)
-    .toDateString();
-}
-
-// ------------------------
-// STORAGE
-// ------------------------
+/*************************************************
+ * STORE HELPERS
+ *************************************************/
 
 function loadStore(rsn) {
   const raw = localStorage.getItem(`history_${rsn}`);
-
-  if (!raw) {
-    return new Map();
-  }
+  if (!raw) return new Map();
 
   try {
-    const map = new Map(JSON.parse(raw));
-
-    // Old RSS cache detected
-    if ([...map.values()].some(x => x.pubDate)) {
-      localStorage.removeItem(`history_${rsn}`);
-      return new Map();
-    }
-
-    return map;
-  }
-  catch {
+    return new Map(JSON.parse(raw));
+  } catch {
     return new Map();
   }
 }
@@ -147,143 +91,259 @@ function getEventKey(item) {
   return `${item.activityDate}|${item.title}`;
 }
 
-// ------------------------
-// INIT
-// ------------------------
+/*************************************************
+ * DATE HELPERS
+ *************************************************/
 
-const savedRSN = localStorage.getItem("lastRSN");
+function parseActivityDate(value) {
+  if (!value) return new Date(0);
 
-if (savedRSN) {
-  rsnInput.value = savedRSN;
+  const months = {
+    Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+    Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
+  };
 
-  const store = loadStore(savedRSN);
-  renderActivities(store);
+  const match = value.match(/^(\d{2})-([A-Za-z]{3})-(\d{4}) (\d{2}):(\d{2})$/);
 
-  loadLog();
-} else {
-  rsnInput.focus();
+  if (match) {
+    const [, d, m, y, h, min] = match;
+    return new Date(+y, months[m], +d, +h, +min);
+  }
+
+  return new Date(value);
 }
 
-refreshBtn.addEventListener("click", () => {
-  const rsn = rsnInput.value.trim();
-  if (!rsn) return;
-  
-  const store = loadStore(rsn);
-  renderActivities(store);
-  loadLog();
-});
-
-rsnInput.addEventListener("change", () => {
-  const rsn = rsnInput.value.trim();
-  if (!rsn) return;
-
-  visibleCount = PAGE_SIZE;
-  
-  const store = loadStore(rsn);  
-  renderActivities(store);  
-  loadLog();
-});
-
-document.querySelectorAll(".toggle").forEach(btn => {
-  btn.addEventListener("click", () => {
-
-    const cat = btn.dataset.cat;
-
-    categoryVisibility[cat] =
-      !categoryVisibility[cat];
-
-    btn.classList.toggle(
-      "off",
-      !categoryVisibility[cat]
-    );
-
-    renderActivities(
-      loadStore(rsnInput.value.trim())
-    );
-  });
-});
-
-if (toggleBtn) {
-  toggleBtn.addEventListener("click", () => {
-
-    autoRefreshEnabled = !autoRefreshEnabled;
-
-    toggleBtn.textContent =
-      autoRefreshEnabled
-        ? "Auto: ON"
-        : "Auto: OFF";
-
-    toggleBtn.classList.toggle(
-      "active",
-      autoRefreshEnabled
-    );
-
-    if (autoRefreshEnabled) {
-      startAutoRefresh();
-    }
-    else {
-      clearInterval(refreshTimer);
-      refreshTimer = null;
-    }
-  });
+function getDateKey(date) {
+  return parseActivityDate(date).toDateString();
 }
 
-settingsBtn.addEventListener("click", () => {
+function formatActivityTime(date) {
+  return parseActivityDate(date)
+    .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
 
-  configVisible = !configVisible;
+/*************************************************
+ * CATEGORY
+ *************************************************/
 
-  configPanel.style.display =
-    configVisible
-      ? "block"
-      : "none";
+function getCategory(title) {
+  const t = title.trim().toLowerCase();
 
-  settingsBtn.textContent =
-    configVisible
-      ? "⚙️"
-      : "⚙️✓";
-});
+  for (const [cat, test] of TITLE_RULES) {
+    if (test(t)) return cat;
+  }
 
-startAutoRefresh();
+  return "other";
+}
 
-// ------------------------
-// LOAD DATA
-// ------------------------
+function getIcon(cat) {
+  switch (cat) {
+    case "boss": return "⚔️";
+    case "skill": return "📈";
+    case "quest": return "📜";
+    case "loot": return "🎁";
+    default: return "❓";
+  }
+}
+
+/*************************************************
+ * UTIL
+ *************************************************/
+
+function escapeHtml(text = "") {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/*************************************************
+ * CORE LOGIC
+ *************************************************/
+
+function sortActivities(map) {
+  return [...map.values()]
+    .sort((a, b) =>
+      parseActivityDate(b.activityDate) -
+      parseActivityDate(a.activityDate)
+    );
+}
+
+function groupByDate(activities) {
+  const groups = new Map();
+
+  for (const a of activities) {
+    const key = getDateKey(a.activityDate);
+
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+
+    groups.get(key).push(a);
+  }
+
+  return groups;
+}
+
+function getVisible(map) {
+  return sortActivities(map).slice(0, visibleCount);
+}
+
+/*************************************************
+ * RENDER
+ *************************************************/
+
+function renderActivities(map) {
+
+  activitiesDiv.innerHTML = "";
+
+  const visible = getVisible(map);
+  const grouped = groupByDate(visible);
+
+  if (!grouped.size) {
+    activitiesDiv.innerHTML = "<p>No history yet.</p>";
+    return;
+  }
+
+  for (const [dateLabel, activities] of grouped.entries()) {
+
+    const isCollapsed = collapsedDates.has(dateLabel);
+
+    const block = document.createElement("div");
+    block.className = "day-block";
+
+    const header = document.createElement("div");
+    header.className = "date-header collapsible";
+    header.textContent = `${isCollapsed ? "▶" : "▼"} ${dateLabel}`;
+
+    const list = document.createElement("div");
+    list.className = isCollapsed ? "day-list collapsed" : "day-list";
+
+    header.onclick = () => {
+      if (collapsedDates.has(dateLabel)) {
+        collapsedDates.delete(dateLabel);
+      } else {
+        collapsedDates.add(dateLabel);
+      }
+      renderActivities(map);
+    };
+
+    for (const a of activities) {
+
+      const cat = getCategory(a.title);
+
+      if (!categoryVisibility[cat]) continue;
+
+      const div = document.createElement("div");
+      div.className = "activity";
+
+      div.innerHTML = `
+        <div class="activity-top">
+          <span class="icon">${getIcon(cat)}</span>
+          <span class="title">${escapeHtml(a.title)}</span>
+        </div>
+        <div class="meta">
+          ${formatActivityTime(a.activityDate)}
+        </div>
+        <div class="desc">
+          ${escapeHtml(a.description || "")}
+        </div>
+      `;
+
+      list.appendChild(div);
+    }
+
+    block.appendChild(header);
+    block.appendChild(list);
+
+    activitiesDiv.appendChild(block);
+  }
+
+  renderLoadMore(map);
+}
+
+/*************************************************
+ * LOAD MORE
+ *************************************************/
+
+function renderLoadMore(map) {
+
+  const existing = document.querySelector(".load-more-btn");
+  if (existing) existing.remove();
+
+  const total = [...map.values()].length;
+
+  if (total <= visibleCount) return;
+
+  const btn = document.createElement("button");
+  btn.className = "load-more-btn";
+  btn.textContent = "Show More";
+
+  btn.onclick = () => {
+    visibleCount += PAGE_SIZE;
+    renderActivities(map);
+  };
+
+  activitiesDiv.appendChild(btn);
+}
+
+/*************************************************
+ * SYNC
+ *************************************************/
+
+function syncActivities(map, incoming) {
+
+  let added = 0;
+
+  for (const item of incoming) {
+
+    const key = getEventKey(item);
+
+    if (!map.has(key)) {
+      map.set(key, item);
+      added++;
+    }
+  }
+
+  if (added > 0) {
+
+    // 🔥 expand visible window so new items appear
+    visibleCount += added;
+
+    renderActivities(map);
+  }
+}
+
+/*************************************************
+ * LOAD LOG
+ *************************************************/
 
 async function loadLog(silent = false) {
 
   const rsn = rsnInput.value.trim();
-
-  if (!rsn) {
-    return;
-  }
-
-  localStorage.setItem("lastRSN", rsn);
+  if (!rsn) return;
 
   const store = loadStore(rsn);
 
   if (!silent) {
-    statusDiv.textContent =
-      "Syncing latest activities...";
+    statusDiv.textContent = "Syncing...";
   }
 
   try {
 
-    const response = await fetch(
+    const res = await fetch(
       `${WORKER_URL}/?rsn=${encodeURIComponent(rsn)}`
     );
 
-    const data = await response.json();
+    const data = await res.json();
 
     if (data.activities) {
 
-      data.activities.forEach(item => {
-
+      for (const item of data.activities) {
         const key = getEventKey(item);
-
         if (!store.has(key)) {
           store.set(key, item);
         }
-      });
+      }
     }
 
     saveStore(rsn, store);
@@ -292,225 +352,169 @@ async function loadLog(silent = false) {
 
     statusDiv.textContent =
       silent
-        ? `Auto-synced • ${new Date().toLocaleTimeString()}`
-        : `Synced • ${store.size} entries`;
+        ? "Auto-synced"
+        : `Synced • ${store.size}`;
 
-  }
-  catch (err) {
-
-    console.error(err);
+  } catch (e) {
 
     renderActivities(store);
 
-    statusDiv.textContent =
-      "Sync failed • showing cached data";
+    statusDiv.textContent = "Sync failed";
   }
 }
 
-// ------------------------
-// AUTO REFRESH
-// ------------------------
+/*************************************************
+ * AUTO REFRESH
+ *************************************************/
 
 function startAutoRefresh() {
 
-  if (refreshTimer) {
-    clearInterval(refreshTimer);
-  }
+  if (refreshTimer) clearInterval(refreshTimer);
 
   refreshTimer = setInterval(() => {
 
-    if (!autoRefreshEnabled) {
-      return;
-    }
+    if (!autoRefreshEnabled) return;
 
     const rsn = rsnInput.value.trim();
-
-    if (!rsn) {
-      return;
-    }
+    if (!rsn) return;
 
     loadLog(true);
 
   }, refreshInterval);
 }
 
-// ------------------------
-// RENDER
-// ------------------------
+/*************************************************
+ * INIT
+ *************************************************/
 
-function renderActivities(map) {
+const savedRSN = localStorage.getItem("lastRSN");
 
-  activitiesDiv.innerHTML = "";
+if (savedRSN) {
 
-  if (!map || map.size === 0) {
-    activitiesDiv.innerHTML = "<p>No history yet.</p>";
-    return;
+  rsnInput.value = savedRSN;
+
+  const store = loadStore(savedRSN);
+
+  renderActivities(store);
+  loadLog();
+
+} else {
+  rsnInput.focus();
+}
+
+startAutoRefresh();
+
+function bindUIControls() {
+
+  /*********************************
+   * CATEGORY TOGGLES
+   *********************************/
+  document.querySelectorAll(".toggle").forEach(btn => {
+
+    const cat = btn.dataset.cat;
+    if (!cat) return;
+
+    btn.onclick = () => {
+
+      categoryVisibility[cat] = !categoryVisibility[cat];
+
+      btn.classList.toggle("off", !categoryVisibility[cat]);
+
+      const rsn = rsnInput.value.trim();
+      if (rsn) {
+        renderActivities(loadStore(rsn));
+      }
+    };
+  });
+
+  /*********************************
+   * REFRESH BUTTON
+   *********************************/
+  if (refreshBtn) {
+    refreshBtn.onclick = () => {
+
+      const rsn = rsnInput.value.trim();
+      if (!rsn) return;
+
+      renderActivities(loadStore(rsn));
+      loadLog();
+    };
   }
 
-  const sorted = [...map.values()]
-    .sort((a, b) =>
-      parseActivityDate(b.activityDate).getTime() -
-      parseActivityDate(a.activityDate).getTime()
-    );
+  /*********************************
+   * AUTO TOGGLE
+   *********************************/
+  if (toggleBtn) {
+    toggleBtn.onclick = () => {
 
-  const visibleActivities =
-    sorted.slice(0, visibleCount);
+      autoRefreshEnabled = !autoRefreshEnabled;
 
-  let currentDate = "";
-  let container = null;
+      toggleBtn.textContent =
+        autoRefreshEnabled ? "Auto: ON" : "Auto: OFF";
 
-  for (const activity of visibleActivities) {
+      toggleBtn.classList.toggle("active", autoRefreshEnabled);
 
-    const category =
-      getCategory(activity.title);
-
-    if (!categoryVisibility[category]) {
-      continue;
-    }
-
-    const dateLabel =
-      getDateKey(activity.activityDate);
-
-    if (dateLabel !== currentDate) {
-
-      currentDate = dateLabel;
-
-      container = document.createElement("div");
-      container.className = "day-block";
-
-      const header =
-        document.createElement("div");
-
-      header.className =
-        "date-header collapsible";
-
-      const collapsed =
-        collapsedDates.has(dateLabel);
-
-      header.textContent =
-        `${collapsed ? "▶" : "▼"} ${dateLabel}`;
-
-      const list =
-        document.createElement("div");
-
-      list.className =
-        collapsed
-          ? "day-list collapsed"
-          : "day-list";
-
-      header.addEventListener("click", () => {
-
-        if (collapsedDates.has(dateLabel)) {
-          collapsedDates.delete(dateLabel);
-        } else {
-          collapsedDates.add(dateLabel);
-        }
-
-        renderActivities(map);
-      });
-
-      container.appendChild(header);
-      container.appendChild(list);
-
-      activitiesDiv.appendChild(container);
-    }
-
-    const div = document.createElement("div");
-
-    div.className = "activity";
-
-    div.innerHTML = `
-      <div class="activity-top">
-        <span class="icon">${getIcon(category)}</span>
-        <span class="title">${escapeHtml(activity.title)}</span>
-      </div>
-
-      <div class="meta">
-        ${formatActivityTime(activity.activityDate)}
-      </div>
-
-      <div class="desc">
-        ${escapeHtml(activity.description || "")}
-      </div>
-    `;
-
-    container
-      .querySelector(".day-list")
-      .appendChild(div);
+      if (autoRefreshEnabled) {
+        startAutoRefresh();
+      } else {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
+    };
   }
 
-  if (sorted.length > visibleCount) {
+  /*********************************
+   * SETTINGS COG
+   *********************************/
+  if (settingsBtn) {
+    settingsBtn.onclick = () => {
 
-    const btn =
-      document.createElement("button");
+      configVisible = !configVisible;
 
-    btn.textContent =
-      `Show More`;
+      configPanel.style.display =
+        configVisible ? "block" : "none";
 
-    btn.style.width = "100%";
-    btn.style.marginTop = "10px";
-
-    btn.addEventListener("click", () => {
-
-      visibleCount += PAGE_SIZE;
-
-      renderActivities(map);
-    });
-
-    activitiesDiv.appendChild(btn);
+      settingsBtn.textContent =
+        configVisible ? "⚙️" : "⚙️✓";
+    };
   }
 }
 
-// ------------------------
-// CATEGORY LOGIC
-// ------------------------
-
-function getCategory(title) {
-
-  const t =
-    title.trim().toLowerCase();
-
-  for (const [category, test] of TITLE_RULES) {
-
-    if (test(t)) {
-      return category;
-    }
-  }
-
-  return "other";
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bindUIControls);
+} else {
+  bindUIControls();
 }
 
-function getIcon(category) {
+const simulateBtn = document.getElementById("simulateBtn");
 
-  switch (category) {
+if (simulateBtn) {
+	
 
-    case "boss":
-      return "⚔️";
+function simulateNewActivity() {
 
-    case "skill":
-      return "📈";
+  const rsn = rsnInput.value.trim();
+  if (!rsn) return;
 
-    case "quest":
-      return "📜";
+  const store = loadStore(rsn);
 
-    case "loot":
-      return "🎁";
+  const fakeItem = {
+    id: "sim_" + Date.now(),
+    title: "I defeated Arch Glacor (simulated)",
+    description: "Injected test entry",
+    activityDate: new Date().toISOString()
+  };
 
-    default:
-      return "❓";
-  }
+  store.set(getEventKey(fakeItem), fakeItem);
+  saveStore(rsn, store);
+
+  // 🔥 important: expand view
+  visibleCount += 1;
+
+  renderActivities(store);
+
+  statusDiv.textContent = "Simulated activity added";
 }
-
-// ------------------------
-// UTIL
-// ------------------------
-
-function escapeHtml(text) {
-
-  const div =
-    document.createElement("div");
-
-  div.textContent = text;
-
-  return div.innerHTML;
+	
+  simulateBtn.onclick = simulateNewActivity;
 }
